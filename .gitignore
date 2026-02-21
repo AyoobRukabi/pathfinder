@@ -9,6 +9,10 @@
 *.so
 *.dylib
 
+# Ignore all files in the root that don't have an extension
+!/*/
+!/*.*
+
 # Test binary, built with `go test -c`
 *.test
 
@@ -32,7 +36,8 @@ go.work.sum
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
+
 
 # Thumbnails
 ._*
@@ -52,4 +57,3 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
-
