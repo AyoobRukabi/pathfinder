@@ -1,6 +1,6 @@
 # Team Collaboration & Git Workflow Guide
 
-Welcome to the project! Since we are working together on this project, we’ll use this workflow to keep our `main` branch stable and our code clean.
+Welcome to the project! Since we are working together, we’ll use this workflow to keep our `main` branch stable, our code clean, and our Git history untangled.
 
 ---
 
@@ -11,35 +11,26 @@ If you haven't already, clone the repo and set up your remotes.
 
 ```bash
 git clone <GITEA_URL>
-cd <GITEA_URL>
+cd pathfinder # Make sure to cd into the actual folder name, not the URL!
 ```
 
-### Configure Dual Remotes (Optional)
-We will use Gitea for collaboration and you can use GitHub for your personal portfolio.
+### Configure Dual Remotes (Optional but Recommended)
+We will use Gitea as our main source of truth, but you can sync to your private GitHub repository for your portfolio. 
 
 > [!CAUTION]
-> GitHub repository should be private.
-> Also, make sure that Gitea is default repo.
+> Your GitHub repository must be private so other students cannot copy our code.
+
+To avoid forgetting to push to GitHub and causing branch divergence, we can configure Git to push to *both* servers simultaneously every time you type `git push`:
 
 ```bash
-# Gitea is 'origin' by default. Add GitHub as a second remote if you want to:
+# 1. Add GitHub as a second remote named 'github'
 git remote add github <GITHUB_URL>
 
-# To push to both (do this after merging to main):
-git push origin main
-git push github main
+# 2. Tell Git to push to both Gitea and GitHub whenever you push to 'origin'
+git remote set-url --add --push origin <GITEA_URL>
+git remote set-url --add --push origin <GITHUB_URL>
 ```
-
-```bash
-# To check what remotes you have, run the command:
-git remote -v
-```
-
-```bash
-# You can rename the remote with the command:
-git remote rename <OLDNAME> <NEWNAME>
-# e.g. git remote rename origin gitea
-```
+*(Now, a standard `git push origin main` will update both automatically.)*
 
 ## 2. The Feature Branch Workflow
 
@@ -56,78 +47,67 @@ git pull origin main
 
 ### Step 2: Create a descriptive branch
 
-Please follow a simplified feature branch naming, and use kebab case.
-Kebab case is a naming convention where all letters are lowercase and spaces are replaced by hyphens (`-`), such as `user-profile-settings`.
+Please follow a simplified feature branch naming, and use kebab case (all lowercase, spaces replaced by hyphens `-`).
 
-**Format:** `user-name(or account name)/type(optional)/short-description`
-Examples: `user-name/feat/dijkstra-algorithm-logic`, `account-name/fix/heap-overflow`, `user-name/api-ref`
+**Format:** `user-name/type/short-description`
+Examples: `korben/feat/dijkstra-algorithm`, `korben/fix/heap-overflow`, `korben/docs/api-ref`
 
 ```bash
-# Pattern: user-name/feat/feature-name or user-name/fix/bug-name
-git checkout -b <name of the branch>
-#e.g. git checkout -b user-name/feat/dijkstra-algorithm-logic
+git checkout -b <name-of-the-branch>
+# e.g., git checkout -b korben/feat/dijkstra-algorithm
 ```
+
 ## 3. Development & Committing
 
 Before committing, ensure your code quality:
-1. Run `go fmt ./...` before committing. (Ensures standard style)
+1. Run `go fmt ./...` (Ensures standard Go style)
 2. Run `go mod tidy` (Cleans up `go.mod` and `go.sum`)
-3. Add `git add .` (adds all changed files) or `git add </path/to_file>` (adds single changed file, you can add multiple files)
-4. Commit `git commit -m "feat: add adjacency list structure for map"` (Please write clear, concise messages). 
+3. **Always run `git status` first** to see exactly what changed so you don't accidentally commit secret files or compiled binaries.
+4. Stage files: `git add <file-name>` (or `git add .` only if you are 100% sure all changed files should be committed).
+5. Commit with a clear message: `git commit -m "feat: add adjacency list structure"` 
 
 ### Commit Message Convention
 Check [Conventional Commits](https://www.conventionalcommits.org/).
-Check [Semantic Commit Messages](https://gist.github.com/joshbuchea/6f47e86d2510bce28f8e7f42ae84c716)
 
 Format: `<type>(<scope>): <subject>`
-`<scope>` is optional
 
-- `feat:` New feature (not a new feature for build script)
-- `fix:` Bug fix (not a fix to a build script)
-- `docs:` Documentation changes.
-- `style:` Code style changes (formatting, missing semi colons, etc;)
-- `refactor:` Refactoring production code (eg. renaming a variable)
-- `test:` Adding missing tests, refactoring tests; no production code change
-- `chore:` Routine tasks (updating dependencies, build tools, no production code change)
-- `build:` Changes affecting the build system or external dependencies.
-- `ci:` Changes to CI configuration files or scripts.
-- `perf:` A code change that improves performance
-- `revert:` Reverts to a previous commit. It should begin with `revert:`, followed by the header of the reverted commit. In the body, it should say: `This reverts commit <hash>`, where the hash is the SHA of the commit being reverted.
+- `feat:` New feature
+- `fix:` Bug fix
+- `docs:` Documentation changes
+- `style:` Code style changes (formatting, missing semicolons, etc.)
+- `refactor:` Refactoring production code (e.g., renaming a variable)
+- `test:` Adding or updating tests
+- `chore:` Routine tasks (updating dependencies)
 
 **Examples:**
 Good: `"feat(algo): implement priority queue for Dijkstra"`
-Good: `"feat: add adjacency list structure for map"`
-
-Bad: `"updates"`
-Bad: `"Add Some Fixes."`
+Bad: `"updates"`, `"Add Some Fixes."`
 
 ### Step 4: Push changes to the branch
 ```bash
-# Push changes to the branch, NOT TO THE MAIN!
-# The -u flag is the standard shorthand for --set-upstream.
-git push -u origin <name of the branch>
-# e.g. git push -u origin account-name/fix/heap-overflow
+# Push changes to the remote branch, NOT TO MAIN!
+git push -u origin <name-of-the-branch>
 ```
-
 > [!TIP]
-> You can configure your global Git settings to automatically create the upstream branch on the remote server whenever you push a branch for the first time.
-> Use command `git config --global push.autoSetupRemote true`
+> You can configure Git to automatically create the upstream branch so you never have to type `-u origin ...` again:
+> `git config --global push.autoSetupRemote true`
 
 ## 4. Merging Code (The Pull Request)
 
-Once your feature is pushed to the branch:
+Once your feature is ready:
 
-1. Go to the Gitea web interface and navigate to project Pull Requests tab.
-2. Click a `New Pull Request` button, and select the branch `merge into` and your branch `pull from`.
-3. Review: The other partner should look at the code, leave comments, and then Approve.
-4. Merge: Once approved, hit the Merge button.
-5. Clean up: Delete your local branch:
+1. Go to the Gitea web interface and navigate to the Pull Requests tab.
+2. Click **New Pull Request**. Select `main` as the target and your branch as the source.
+3. **Write a good description:** Explicitly state *What* you changed and *Why* you changed it. Do not force the reviewer to guess your logic.
+4. **Review:** Your partner will review the code, leave comments, and approve it.
+5. **Merge:** Once approved, hit "Squash and Merge".
+6. **Clean up:** Delete your local and remote branches to keep the repo clean:
 
 ```bash
-# Do this only when the PR is approved, and changes are in main!
 git checkout main
 git pull origin main
-git branch -d account-name/fix/heap-overflow # delete local branch if you don't need it anymore and fix or feature is done and merged
+git branch -d <name-of-the-branch> # Deletes local branch
+git push origin --delete <name-of-the-branch> # Deletes remote branch
 ```
 
 ## 5. Common Git Commands Reference
@@ -136,12 +116,12 @@ git branch -d account-name/fix/heap-overflow # delete local branch if you don't 
 | ----------- | ----------- |
 | Check status | `git status` |
 | See history | `git log --oneline --graph` |
-| Undo last commit (keep code) | `git reset --soft HEAD~1` |
+| Fix last commit message | `git commit --amend` |
+| Undo last commit | `git reset --soft HEAD~1` **(ONLY use this if you haven't pushed yet!)** |
 | Switch branches | `git checkout <branch-name>` |
 | Discard local changes | `git checkout -- <file-name>` |
 
 ## 6. Other Tips
 
-1. VS Code Extensions: Install the official Go extension and `GitLens`.
-2. Mod Files: If you add a new dependency, run `go mod tidy` before committing.
-3. Conflicts: If we both edit the same line, Git will ask us to choose. Use the VS Code "Merge Editor" to pick the best logic.
+1. **VS Code Extensions:** Install the official Go extension and `GitLens`.
+2. **Conflicts:** If we both edit the same line, Git will ask us to choose. Use the VS Code "Merge Editor" to pick the correct logic.
