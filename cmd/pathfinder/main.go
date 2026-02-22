@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"gitea.kood.tech/ivanandreev/pathfinder/internal/app"
 	"gitea.kood.tech/ivanandreev/pathfinder/internal/config"
@@ -37,6 +38,7 @@ func main() {
 
 	// run the app, exit on error
 	if err := app.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -59,5 +61,12 @@ func parseArgs() (string, string, string, int, error) {
 		return "", "", "", 0, fmt.Errorf("number of trains must be a positive integer, got '%s'", args[3])
 	}
 
-	return args[0], args[1], args[2], numTrains, nil
+	startStation := strings.ToLower(args[1])
+	endStation := strings.ToLower(args[2])
+	//It displays "Error" on stderr when the start and end station are the same.
+	if !strings.EqualFold(startStation, endStation) {
+		return "", "", "", 0, fmt.Errorf("start and end station are the same, start: %s, end: %s", startStation, endStation)
+	}
+
+	return args[0], startStation, endStation, numTrains, nil
 }
