@@ -57,6 +57,23 @@ git checkout -b <name-of-the-branch>
 # e.g., git checkout -b korben/feat/dijkstra-algorithm
 ```
 
+### Step 3: If you want to featch new changes from main into your branch
+To download the latest changes from the remote server (origin) without touching your local main branch,
+and then neatly replays your feature commits on top of your teammate's new work.
+
+```bash
+# 1. Download the latest changes from Git (origin)
+git fetch origin
+
+# 2. Replay your branch's commits on top of the newly updated main
+git rebase origin/main
+```
+
+> [!WARNING]
+> If you and your teammate edited the exact same lines of code, you might have to resolve conflicts step-by-step for each of your individual commits.
+>
+> If you have already pushed your branch to the remote server, you will have to `git push --force-with-lease` to update the remote branch after the rebase.
+
 ## 3. Development & Committing
 
 Before committing, ensure your code quality:
