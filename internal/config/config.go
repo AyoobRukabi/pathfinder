@@ -17,10 +17,9 @@ type Config struct {
 func MustLoad(mapPath string, start string, destination string, trains int) *Config {
 	var cfg Config
 
-	configPath := "./config/local/local.json"
-
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		log.Fatalf("config file doesn't exist: %s", configPath)
+	configPath := os.Getenv("CONFIG_PATH")
+	if configPath == "" {
+		configPath = "./config/local/local.json"
 	}
 
 	data, err := os.ReadFile(configPath)
