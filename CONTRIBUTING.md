@@ -38,7 +38,7 @@ git remote -v
 ```bash
 # You can rename the remote with the command:
 git remote rename <OLDNAME> <NEWNAME>
-# e.g. git remote rename origina gitea
+# e.g. git remote rename origin gitea
 ```
 
 ## 2. The Feature Branch Workflow
@@ -63,20 +63,21 @@ Kebab case is a naming convention where all letters are lowercase and spaces are
 Examples: `user-name/feat/dijkstra-algorithm-logic`, `account-name/fix/heap-overflow`, `user-name/api-ref`
 
 ```bash
-# Pattern: feat/feature-name or fix/bug-name
-git checkout -b user-name/feat/dijkstra-algorithm-logic
+# Pattern: user-name/feat/feature-name or user-name/fix/bug-name
+git checkout -b <name of the branch>
+#e.g. git checkout -b user-name/feat/dijkstra-algorithm-logic
 ```
 ## 3. Development & Committing
 
 Before committing, ensure your code quality:
 1. Run `go fmt ./...` before committing. (Ensures standard style)
 2. Run `go mod tidy` (Cleans up `go.mod` and `go.sum`)
-3. Run `golangci-lint run` (If installed) or at least `go vet ./...`.
-4. Add `git add .` (adds all changed files) or `git add </path/to_file>` (adds single changed file, you can add multiple files)
-5. Commit `git commit -m "feat: add adjacency list structure for map"` (Please write clear, concise messages)
+3. Add `git add .` (adds all changed files) or `git add </path/to_file>` (adds single changed file, you can add multiple files)
+4. Commit `git commit -m "feat: add adjacency list structure for map"` (Please write clear, concise messages). 
 
 ### Commit Message Convention
 Check [Conventional Commits](https://www.conventionalcommits.org/).
+Check [Semantic Commit Messages](https://gist.github.com/joshbuchea/6f47e86d2510bce28f8e7f42ae84c716)
 
 Format: `<type>(<scope>): <subject>`
 `<scope>` is optional
@@ -103,8 +104,14 @@ Bad: `"Add Some Fixes."`
 ### Step 4: Push changes to the branch
 ```bash
 # Push changes to the branch, NOT TO THE MAIN!
-git push origin feat/dijkstra-implementation
+# The -u flag is the standard shorthand for --set-upstream.
+git push -u origin <name of the branch>
+# e.g. git push -u origin account-name/fix/heap-overflow
 ```
+
+> [!TIP]
+> You can configure your global Git settings to automatically create the upstream branch on the remote server whenever you push a branch for the first time.
+> Use command `git config --global push.autoSetupRemote true`
 
 ## 4. Merging Code (The Pull Request)
 
@@ -120,7 +127,7 @@ Once your feature is pushed to the branch:
 # Do this only when the PR is approved, and changes are in main!
 git checkout main
 git pull origin main
-git branch -d feat/dijkstra-implementation
+git branch -d account-name/fix/heap-overflow # delete local branch if you don't need it anymore and fix or feature is done and merged
 ```
 
 ## 5. Common Git Commands Reference
