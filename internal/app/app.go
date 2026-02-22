@@ -23,5 +23,9 @@ func New(cfg *config.Config) *App {
 func (app *App) Run() error {
 	// main program wiering file
 
+	// storage
+
+	// service
+
 	return nil
 }
