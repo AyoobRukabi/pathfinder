@@ -135,6 +135,7 @@ git push origin --delete <name-of-the-branch> # Deletes remote branch
 | See history | `git log --oneline --graph` |
 | Fix last commit message | `git commit --amend` |
 | Undo last commit | `git reset --soft HEAD~1` **(ONLY use this if you haven't pushed yet!)** |
+| Check list of local branches | `git branch` |
 | Switch branches | `git checkout <branch-name>` |
 | Discard local changes | `git checkout -- <file-name>` |
 

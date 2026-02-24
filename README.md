@@ -1,6 +1,6 @@
 <p align="center">
 <img src="https://img.shields.io/badge/kood/Sisu-brightgreen?logo=gitea&logoColor=white&labelColor=8A2BE2">
-<img src="https://img.shields.io/badge/1.26.0-00ADD8?logo=go&logoColor=white&labelColor=gray">
+<img src="https://img.shields.io/badge/1.25.0-00ADD8?logo=go&logoColor=white&labelColor=gray">
 <!-- <img src="https://img.shields.io/badge/platforms-Linux%20|%20macOS-green.svg"> -->
 <img src="https://img.shields.io/badge/license-MIT-green.svg">
 </p>
@@ -60,23 +60,22 @@ go build -o pathfinder cmd/pathfinder/main.go
 pathfinder/
 ├── cmd/
 │   └── pathfinder/
-│       └── main.go             # Application entry point (Wires dependencies & starts App)
+│       └── main.go             # Application entry point (parse args & starts app)
 ├── config/
 │   └── local/
 │       └── local.json          # Configuration for local environment
 ├── internal/
-│   ├── app/                    # Composition Root (Initializes Core, Repository, Web)
+│   ├── app/                    # Composition Root (Wires dependencies: storage, service)
 │   ├── config/                 # Configuration structs and parsing logic
 │   ├── domain/                 # Core Business Entities (structs that we need, e.g. stations, graph map, trains, etc.)
 │   ├── lib/                    # Any useful functions or helpers not related to some of the layers.
 │   │   └── e/                  # Error wrapping utilities
-│   ├── storage/                # Data Access Layer (e.g. we store maps in files and memory)
-│   │   └── memory/
-│   └── usecase/
-│       └── dispetcher/         # Business Logic (algorithm to find the shortest root, optimisation, and so on)
+│   ├── storage/                # Data Access Layer (e.g. maps, map validation)
+│   │   └── local/
+│   └── service/
+│       └── sur/                # Business Logic (algorithm to find the shortest root)
 ├── pkg/                        # Reusable Library Code (No domain dependencies)
 │   ├── cache/                  # Thread-safe Cache with Janitor
-│   ├── httpclient/             # Resilient HTTP Client wrapper (not needed, just as an example)
 │   └── logger/                 # Structured Logger setup
 ├── go.mod                      # Go Module definitions
 ├── CONTRIBUTING.md             # Team Collaboration & Git Workflow Guide
