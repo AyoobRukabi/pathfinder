@@ -3,8 +3,10 @@ package local
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 
 	"gitea.kood.tech/ivanandreev/pathfinder/internal/domain"
@@ -88,19 +90,21 @@ func (s *Storage) ParseMap() (domain.Graph, error) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
+	lineCount := 0
 
 	stationsSectionExists := false
 	connectionsSectionExists := false
-	const stations = "stations:"
-	const connections = "connections:"
+	const stationsSection = "stations:"
+	const connectionsSection = "connections:"
 
 	var graph domain.Graph
-	stations := make([]domain.Station)
+	var stations []domain.Station
 	var edges []domain.Edge
-	NameToID map[string]int
-    Edges    [][]Edge
+	nameToID := make(map[string]int)
+	var edgesMap [][]domain.Edge
 
 	for scanner.Scan() {
+		lineCount++
 		line := scanner.Text()
 
 		// Skip empty lines and lines starting with comments
@@ -108,26 +112,57 @@ func (s *Storage) ParseMap() (domain.Graph, error) {
 			continue
 		}
 
-		if strings.Contains(line, `#`) {
+		if strings.Contains(line, "#") {
 			splittedLine := strings.SplitN(line, "#", 2)
 			line = splittedLine[0]
 		}
-		
-		if strings.EqualFold(line, stations) {
+
+		line = strings.TrimSpace(line)
+
+		if strings.EqualFold(line, stationsSection) {
 			stationsSectionExists = true
 		}
 
-		if strings.EqualFold(line, connections) && !stationsSectionExists {
+		if strings.Contains(line, ",") && stationsSectionExists && !connectionsSectionExists {
+			stationParams := strings.Split(line, ",")
+
+			stationName := stationParams[0]
+			x, err := strconv.ParseFloat(stationParams[1], 64)
+			if err != nil {
+				log.Error("can't parse float for Y coordinate",
+					slog.String("station", stationName),
+					slog.Int("map line", lineCount),
+					slog.Any("error", err),
+				)
+				return domain.Graph{}, fmt.Errorf("can't parse float for y coordinate, station name: %s, map line: %d, error: %v", stationName, lineCount, err)
+			}
+
+			y, err := strconv.ParseFloat(stationParams[2], 64)
+			if err != nil {
+				log.Error("can't parse float for y coordinate",
+					slog.String("station", stationName),
+					slog.Int("map line", lineCount),
+					slog.Any("error", err),
+				)
+				return domain.Graph{}, fmt.Errorf("can't parse float for y coordinate, station name: %s, map line: %d, error: %v", stationName, lineCount, err)
+			}
+
+			tmpStation := domain.Station{
+				Name: stationName,
+				X:    x,
+				Y:    y,
+			}
+
+			stations = append(stations, tmpStation)
+		}
+
+		if strings.EqualFold(line, connectionsSection) && !stationsSectionExists {
 			err := errors.New("the connections section is found before the stations section")
 			log.Error("the map does not contain a stations section", slog.Any("error", err))
 			return domain.Graph{}, e.Wrap("the map does not contain a stations section", err)
 		} else {
 			connectionsSectionExists = true
 		}
-
-
-		line = strings.TrimSpace(line)
-
 
 	}
 
