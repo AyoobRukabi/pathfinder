@@ -7,32 +7,42 @@ import (
 	"gitea.kood.tech/ivanandreev/pathfinder/internal/domain"
 )
 
-// TestRunSimulation acts as a manual integration test to see the simulator in action
-func TestRunSimulation(t *testing.T) {
-	// --- MOCK DATA (Fake Graph) ---
+func TestSmartRouting(t *testing.T) {
+	// MOCK GRAPH
 	mockGraph := &domain.Graph{
 		Stations: []domain.Station{
-			{Name: "start", X: 0, Y: 0},   // ID 0
-			{Name: "jungle", X: 5, Y: 5},  // ID 1
-			{Name: "desert", X: 5, Y: 5},  // ID 2
-			{Name: "end", X: 10, Y: 10},   // ID 3
+			{Name: "start", X: 0, Y: 0},
+			{Name: "short1", X: 1, Y: 1},
+			{Name: "long1", X: 2, Y: 2},
+			{Name: "long2", X: 3, Y: 3},
+			{Name: "long3", X: 4, Y: 4},
+			{Name: "end", X: 10, Y: 10},
 		},
 	}
 
-	// --- MOCK PATHS (Fake Algorithms) ---
-	// Path 1: start(0) -> jungle(1) -> end(3)
-	// Path 2: start(0) -> desert(2) -> end(3)
+	// MOCK PATHS
+	// Path 0: start -> short1 -> end (Length 3)
+	// Path 1: start -> long1 -> long2 -> long3 -> end (Length 5)
 	mockPaths := [][]int{
-		{0, 1, 3}, // Short path 1
-		{0, 2, 3}, // Short path 2
+		{0, 1, 5},       // Short
+		{0, 2, 3, 4, 5}, // Long
 	}
 
-	fmt.Println("--- Starting Simulation Test (4 Trains) ---")
-
-	// --- RUN SIMULATOR ---
-	sim := New(mockGraph, mockPaths, 4)
+	fmt.Println("--- Testing Smart Routing (5 Trains) ---")
+	// We expect the first few trains to take Path 0 (Short).
+	// Only when Path 0 gets crowded should a train take Path 1 (Long).
 	
-	// We run it. In a real test, we might check output, 
-	// but for now, we just want to see it print to stdout.
+	sim := New(mockGraph, mockPaths, 5)
+	
+	// Print assignments to verify logic
+	for _, tr := range sim.Trains {
+		pathName := "Short"
+		if len(tr.PathIDs) > 3 {
+			pathName = "Long"
+		}
+		fmt.Printf("Train %d assigned to: %s Path\n", tr.ID, pathName)
+	}
+
+	fmt.Println("\n--- Simulation Output ---")
 	sim.Run()
 }

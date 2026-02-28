@@ -19,20 +19,35 @@ type Simulator struct {
 func New(g *domain.Graph, paths [][]int, numTrains int) *Simulator {
 	trains := make([]*Train, numTrains)
 	
-	// LOAD BALANCING LOGIC
-	// We need to decide which train takes which path.
-	// For now, we use a simple Round-Robin. 
-	// (Anwar might provide a better distribution logic later, but this works for now).
+	// Track how many trains are assigned to each path to calculate waiting time
+	pathUsage := make([]int, len(paths))
+
 	for i := 0; i < numTrains; i++ {
-		// Pick a path in a loop: Path A, Path B, Path A, Path B...
-		pathIndex := i % len(paths) 
-		
+		bestPathIndex := 0
+		minCost := 999999999 // Start with a high number
+
+		// Find the path with the lowest effective cost (Length + Queue)
+		for pIdx, path := range paths {
+			// Cost = Length of Path + Number of trains already queued on it
+			// This estimates when this specific train would arrive
+			cost := len(path) + pathUsage[pIdx]
+
+			if cost < minCost {
+				minCost = cost
+				bestPathIndex = pIdx
+			}
+		}
+
+		// Assign train to the best path
 		trains[i] = &Train{
 			ID:         i + 1,
-			PathIDs:    paths[pathIndex],
-			CurrentIdx: 0, // Start at the first station in the path
+			PathIDs:    paths[bestPathIndex],
+			CurrentIdx: 0, // Starts at the Start Station (index 0)
 			Arrived:    false,
 		}
+		
+		// Increment usage for that path
+		pathUsage[bestPathIndex]++
 	}
 
 	return &Simulator{
