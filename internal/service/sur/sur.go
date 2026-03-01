@@ -5,8 +5,8 @@ package sur
 // Responsibility: Business rules and logical operations.
 
 // Validations:
-// - start == end (Error: Start and destination cannot be the same).
-// Do start and end actually exist in the parsed map?
+// - It displays "Error" on stderr when the start station does not exist.
+// - It displays "Error" on stderr when the end station does not exist.
 // Is there an actual path between them?
 
 // Why here:

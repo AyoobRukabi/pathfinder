@@ -15,21 +15,14 @@ import (
 // Responsibility: Data integrity and structural validation of the map file.
 
 // Validations:
-// - Malformed lines,
-// - negative coordinates,
-// - two stations sharing the exact same coordinates,
-// - a connection pointing to a station that doesn't exist.
-
 // The repository's job is to read the file and return a valid adjeisency list.
-// If the file is broken, the repository should fail to build the object and return an error
+// If the file is broken, the repository should fail to build the object and return an error.
 // (e.g., fmt.Errorf("invalid map: duplicate coordinates at line 10")).
 // The service layer should never have to worry if the map structurally makes sense.
 
 // Errors to check:
 // - [x] It displays "Error" on stderr when the map does not contain a "stations:" section.
 // - [x] It displays "Error" on stderr when the map does not contain a "connections:" section.
-// - It displays "Error" on stderr when the start station does not exist.
-// - It displays "Error" on stderr when the end station does not exist.
 // - [x] It displays "Error" on stderr when any of the coordinates are not valid positive integers.
 // - [x] It displays "Error" on stderr when two stations exist at the same coordinates.
 // - [x] It displays "Error" on stderr when station names are duplicated.
@@ -39,8 +32,21 @@ import (
 // - [x] It displays "Error" on stderr when a connection is made with a station which does not exist.
 // - [x] It displays "Error" on stderr when duplicate routes exist between two stations, including in reverse.
 
-const stationsSection = "stations:"
-const connectionsSection = "connections:"
+const (
+	stationsSection    = "stations:"
+	connectionsSection = "connections:"
+)
+
+type parserState int
+
+const (
+	stateInit parserState = iota
+	stateStations
+	stateConnections
+)
+
+type coord struct{ x, y int }
+type edge struct{ u, v int }
 
 type Storage struct {
 	log          *slog.Logger
@@ -77,13 +83,13 @@ func (s *Storage) BuildMap() (domain.MapData, error) {
 	scanner := bufio.NewScanner(file)
 	lineCount := 0
 
-	stationsSectionExists := false
-	connectionsSectionExists := false
-
-	var stations []domain.Station        // statsions[0] -> "waterloo"
-	nodeNameToID := make(map[string]int) // map of IDs "waterloo" -> [0]
-	connections := make(map[string]bool) // to check duplicate edges
 	var adjList [][]int
+	var stations []domain.Station          // statsions[0] -> "waterloo"
+	nodeNameToID := make(map[string]int)   // map of IDs "waterloo" -> [0]
+	seenCoords := make(map[coord]string)   // to check stations with the same coordinates
+	seenConnections := make(map[edge]bool) // to check duplicate edges
+
+	currentState := stateInit
 
 	for scanner.Scan() {
 		lineCount++
@@ -96,119 +102,99 @@ func (s *Storage) BuildMap() (domain.MapData, error) {
 
 		// Remove comments
 		if strings.Contains(line, "#") {
-			splittedLine := strings.SplitN(line, "#", 2)
-			line = splittedLine[0]
+			cutLine, _, _ := strings.Cut(line, "#")
+			line = cutLine
 		}
 
 		line = strings.TrimSpace(line)
 
 		if strings.EqualFold(line, stationsSection) {
-			stationsSectionExists = true
+			currentState = stateStations
 			continue
-		}
-
-		if strings.EqualFold(line, connectionsSection) && !stationsSectionExists {
-			log.Error("the connections section is found before the stations section")
-			return domain.MapData{}, fmt.Errorf("the connections section is found before the stations section, map line: %d", lineCount)
 		}
 
 		if strings.EqualFold(line, connectionsSection) {
-			connectionsSectionExists = true
+			if currentState != stateStations {
+				log.Error("connections section found before stations section", slog.Int("map line:", lineCount))
+				return domain.MapData{}, fmt.Errorf("connections section found before stations section, line: %d", lineCount)
+			}
+			currentState = stateConnections
 			continue
 		}
 
-		switch {
-		case strings.Contains(line, ",") && stationsSectionExists && !connectionsSectionExists:
-			{
-				station, err := buildStation(log, line, lineCount)
-				if err != nil {
-					log.Error("invalid station line", slog.Any("error", err))
-					return domain.MapData{}, err
-				}
+		if currentState == stateStations {
 
-				if _, ok := nodeNameToID[station.Name]; ok {
-					log.Error("station names are duplicated",
-						slog.String("station", station.Name),
-						slog.Int("map line", lineCount))
-					return domain.MapData{}, fmt.Errorf("station names are duplicated, station name: %s, map line: %d",
-						station.Name, lineCount)
-				}
-
-				for i := range stations {
-					if stations[i].X == station.X && stations[i].Y == station.Y {
-						log.Error("two stations exist at the same coordinates",
-							slog.String("station one", station.Name),
-							slog.String("station two", stations[i].Name),
-							slog.Int("map line", lineCount),
-						)
-						return domain.MapData{}, fmt.Errorf("two stations exist at the same coordinates, station one: %s, station two: %s map line: %d",
-							stations[i].Name, station.Name, lineCount)
-					}
-
-				}
-				stations = append(stations, station)
-				nodeNameToID[station.Name] = len(stations) - 1
-				adjList = append(adjList, []int{}) // add an empty row so adjList[id] exists
+			if len(stations) >= 10000 {
+				log.Error("map contains more than 10000 stations", slog.Int("map line", lineCount))
+				return domain.MapData{}, fmt.Errorf("map contains more than 10000 stations, map line: %d", lineCount)
 			}
-		case strings.Contains(line, ",") && !stationsSectionExists && !connectionsSectionExists:
-			log.Error("the map does not contain a stations section")
-			return domain.MapData{}, fmt.Errorf("the map does not contain a \"stations:\" section, map line: %d", lineCount-1)
-		case strings.Contains(line, "-") && stationsSectionExists && connectionsSectionExists:
-			{
-				// Validate Connections here
-				nodeIDs, err := validateConnection(log, line, lineCount, nodeNameToID) // {from, to}
-				if err != nil {
-					log.Error("invalid connection line", slog.Any("error", err))
-					return domain.MapData{}, err
-				}
-
-				from := nodeIDs[0]
-				to := nodeIDs[1]
-
-				fromTo := fmt.Sprintf("%d-%d", from, to)
-				toFrom := fmt.Sprintf("%d-%d", to, from)
-
-				if _, ok := connections[fromTo]; ok {
-					log.Error("duplicate routes exist between two stations",
-						slog.String("station", stations[from].Name),
-						slog.Int("map line", lineCount))
-					return domain.MapData{}, fmt.Errorf("duplicate routes exist between two stations, station one: %s, station two: %s, map line: %d",
-						stations[from].Name, stations[to].Name, lineCount)
-				} else if _, ok := connections[toFrom]; ok {
-					log.Error("duplicate routes exist between two stations",
-						slog.String("station", stations[to].Name),
-						slog.Int("map line", lineCount))
-					return domain.MapData{}, fmt.Errorf("duplicate routes exist between two stations, station one: %s, station two: %s, map line: %d",
-						stations[to].Name, stations[from].Name, lineCount)
-				} else {
-					connections[fromTo] = true
-					connections[toFrom] = true
-				}
-
-				adjList[from] = append(adjList[from], to)
-				adjList[to] = append(adjList[to], from)
+			// We are strictly parsing stations here.
+			station, err := buildStation(log, line, lineCount)
+			if err != nil {
+				log.Error("invalid station line", slog.Any("error", err))
+				return domain.MapData{}, err
 			}
-		case strings.Contains(line, "-") && stationsSectionExists && !connectionsSectionExists:
-			log.Error("the map does not contain a connections section")
-			return domain.MapData{}, fmt.Errorf("the map does not contain a \"connections:\" section, map line: %d", lineCount-1)
-			// default:
-			// 	log.Error("invalid line", slog.Int("map line", lineCount))
-			// 	return domain.MapData{}, fmt.Errorf("invalid line, map line: %d", lineCount)
+
+			if _, ok := nodeNameToID[station.Name]; ok {
+				log.Error("station names are duplicated",
+					slog.String("station", station.Name),
+					slog.Int("map line", lineCount))
+				return domain.MapData{}, fmt.Errorf("station names are duplicated, station name: %s, map line: %d",
+					station.Name, lineCount)
+			}
+
+			c := coord{x: station.X, y: station.Y}
+			if existingName, exists := seenCoords[c]; exists {
+				log.Error("two stations exist at the same coordinates",
+					slog.String("station one", station.Name),
+					slog.String("station two", existingName),
+					slog.Int("map line", lineCount),
+				)
+				return domain.MapData{}, fmt.Errorf("two stations exist at the same coordinates, stations %s and %s, map line: %d",
+					existingName, station.Name, lineCount)
+			}
+			seenCoords[c] = station.Name
+
+			stations = append(stations, station)
+			nodeNameToID[station.Name] = len(stations) - 1
+			adjList = append(adjList, []int{}) // add an empty row so adjList[id] exists
+		} else if currentState == stateConnections {
+			// Validate Connections here
+			nodeIDs, err := validateConnection(log, line, lineCount, nodeNameToID)
+			if err != nil {
+				log.Error("invalid connection line", slog.Any("error", err))
+				return domain.MapData{}, err
+			}
+
+			from := nodeIDs[0]
+			to := nodeIDs[1]
+
+			e := makeEdge(from, to)
+			if seenConnections[e] {
+				log.Error("duplicate routes exist between two stations",
+					slog.String("station", stations[from].Name),
+					slog.String("station", stations[to].Name),
+					slog.Int("map line", lineCount))
+				return domain.MapData{}, fmt.Errorf("duplicate routes exist between two stations, %s and %s, map line: %d",
+					stations[from].Name, stations[to].Name, lineCount)
+			}
+			seenConnections[e] = true
+
+			adjList[from] = append(adjList[from], to)
+			adjList[to] = append(adjList[to], from)
+		} else {
+			log.Error("invalid data found before any section headers", slog.Int("map line:", lineCount))
+			return domain.MapData{}, fmt.Errorf("invalid data found before any section headers, map line: %d", lineCount)
 		}
 	}
 
-	if !stationsSectionExists || !connectionsSectionExists {
-		log.Error("the stations or connections section is missing",
-			slog.Bool("stations", stationsSectionExists),
-			slog.Bool("connections", connectionsSectionExists),
-		)
-		return domain.MapData{}, fmt.Errorf("the stations or connections section is missing, stations: %v, connections: %v",
-			stationsSectionExists, connectionsSectionExists)
+	if err := scanner.Err(); err != nil {
+		log.Error("unexpected scanner error", slog.Int("map line:", lineCount))
+		return domain.MapData{}, fmt.Errorf("unexpected scanner error, line: %d, error: %w", lineCount, err)
 	}
 
-	if len(stations) > 10000 {
-		log.Error("map contains more than 10000 stations")
-		return domain.MapData{}, fmt.Errorf("map contains more than 10000 stations")
+	if currentState != stateConnections {
+		return domain.MapData{}, fmt.Errorf("the map is missing the connections section")
 	}
 
 	mapData := domain.MapData{
@@ -338,4 +324,12 @@ func validateConnection(log *slog.Logger, line string, lineCount int, nodeToIdMa
 	}
 
 	return nodes, nil
+}
+
+// Helper func to revert edge IDs
+func makeEdge(u, v int) edge {
+	if u < v {
+		return edge{u, v}
+	}
+	return edge{v, u}
 }
