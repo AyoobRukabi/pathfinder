@@ -2,30 +2,34 @@ package domain
 
 type Station struct {
 	Name string
-	X    float64
-	Y    float64
+	X    int
+	Y    int
 }
 
 type Edge struct {
-	To     int
-	Weight float64
+	To       int
+	Cap      int
+	Flow     int
+	Cost     int
+	RevIndex int
 }
 
-// option 1
-type Graph struct {
-	Stations []Station      // Index is the station ID
-	NameToID map[string]int // Translates "waterloo" -> 0
-	Edges    [][]Edge       // Adjacency list: Edges[0] = []int{1, 2}
+type MapData struct {
+	Stations         []Station
+	StationsNameToID map[string]int
+	AdjList          [][]int
 }
 
 // option 2
 
 // type Edge struct {
-// 	To     string
-// 	Weight float64
+// 	To       int // Destination node ID
+// 	Cap      int // 1 for normal stations, math.MaxInt32 for start/end
+// 	Flow     int // Current flow (0 or 1)
+// 	RevIndex int // The index of the reverse edge in the 'To' node's adjacency list
 // }
 
+// // Graph holds the 2N nodes required for vertex splitting
 // type Graph struct {
-// 	Stations map[string]Station
-// 	Edges    map[string][]Edge // e.g., Edges["waterloo"] = []Edge{"victoria", "euston"}
+// 	Nodes [][]Edge // Size is 2 * Number of Stations
 // }

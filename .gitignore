@@ -12,6 +12,13 @@
 # Ignore all files in the root that don't have an extension
 !/*/
 !/*.*
+ideas.md
+/test-cases
+plan.md
+
+# Agents
+AGENTS.md
+GEMINI.md
 
 # Test binary, built with `go test -c`
 *.test
