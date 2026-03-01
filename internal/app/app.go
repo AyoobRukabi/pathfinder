@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"log/slog"
 
 	"gitea.kood.tech/ivanandreev/pathfinder/internal/config"
@@ -33,11 +34,39 @@ func (app *App) Run() error {
 		app.cfg.NetworkMapPath,
 		app.cfg.StartStation,
 		app.cfg.EndStation,
+		app.cfg.NumTrains,
 	)
+
+	//test
+	if err := testFunc(storage); err != nil { // TODO: Remove
+		return err
+	}
 
 	// service
 
 	// graceful shutdown
 
+	return nil
+}
+
+func testFunc(s *local.Storage) error {
+	networkMap, err := s.BuildMap()
+	if err != nil {
+		return err
+	}
+
+	for i := range networkMap.AdjList {
+		fmt.Printf("Node: %d connects to nodes: %v\n", i, networkMap.AdjList[i])
+	}
+
+	fmt.Printf("-------------------------------------\n")
+
+	for i := range networkMap.AdjList {
+		var tmpStations []string
+		for _, s := range networkMap.AdjList[i] {
+			tmpStations = append(tmpStations, networkMap.Stations[s].Name)
+		}
+		fmt.Printf("Station: %s has connection with: %v\n", networkMap.Stations[i].Name, tmpStations)
+	}
 	return nil
 }

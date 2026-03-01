@@ -64,7 +64,7 @@ func parseArgs() (string, string, string, int, error) {
 	startStation := strings.ToLower(args[1])
 	endStation := strings.ToLower(args[2])
 	//It displays "Error" on stderr when the start and end station are the same.
-	if !strings.EqualFold(startStation, endStation) {
+	if strings.EqualFold(startStation, endStation) {
 		return "", "", "", 0, fmt.Errorf("start and end station are the same, start: %s, end: %s", startStation, endStation)
 	}
 

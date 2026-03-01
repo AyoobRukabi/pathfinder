@@ -6,6 +6,7 @@ package sur
 
 // Validations:
 // - start == end (Error: Start and destination cannot be the same).
+// - It displays "Error" on stderr when no path exists between the start and end stations.
 // Do start and end actually exist in the parsed map?
 // Is there an actual path between them?
 
