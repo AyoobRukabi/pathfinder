@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"gitea.kood.tech/ivanandreev/pathfinder/internal/config"
+	"gitea.kood.tech/ivanandreev/pathfinder/internal/service/sur"
 	"gitea.kood.tech/ivanandreev/pathfinder/internal/storage/local"
 	"gitea.kood.tech/ivanandreev/pathfinder/pkg/logger"
 )
@@ -51,6 +52,14 @@ func testFunc(s *local.Storage) error {
 	if err != nil {
 		return err
 	}
+	Service := sur.New(
+		s.StartStation,
+		s.EndStation,
+		s.Trains,
+		networkMap,
+	)
+	paths := Service.FindOptimalPaths()
+	fmt.Println(paths)
 
 	for i := range networkMap.AdjList {
 		fmt.Printf("Node: %d connects to nodes: %v\n", i, networkMap.AdjList[i])

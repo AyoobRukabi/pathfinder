@@ -1,3 +1,5 @@
+package sur
+
 func spfa(graph [][]Edge, S, T, numNodes int) bool {
 	dist := make([]int, numNodes)
 	for i := range dist {
@@ -17,13 +19,13 @@ func spfa(graph [][]Edge, S, T, numNodes int) bool {
 		inQueue[u] = false
 
 		for i, e := range graph[u] {
-			if e.cap-e.flow > 0 && dist[u]+e.cost < dist[e.to] {
-				dist[e.to] = dist[u] + e.cost
-				parentnode[e.to] = u
-				parentEdge[e.to] = i
-				if !inQueue[e.to] {
-					queue = append(queue, e.to)
-					inQueue[e.to] = true
+			if e.Cap-e.Flow > 0 && dist[u]+e.Cost < dist[e.To] {
+				dist[e.To] = dist[u] + e.Cost
+				parentnode[e.To] = u
+				parentEdge[e.To] = i
+				if !inQueue[e.To] {
+					queue = append(queue, e.To)
+					inQueue[e.To] = true
 				}
 			}
 		}
@@ -38,10 +40,10 @@ func spfa(graph [][]Edge, S, T, numNodes int) bool {
 	for curr != S {
 		p := parentnode[curr]
 		idx := parentEdge[curr]
-		revIdx := graph[p][idx].revIndex
+		revIdx := graph[p][idx].Rev
 
-		graph[p][idx].flow++
-		graph[curr][revIdx].flow--
+		graph[p][idx].Flow++
+		graph[curr][revIdx].Flow--
 		curr = p
 	}
 	return true
