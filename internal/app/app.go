@@ -32,9 +32,6 @@ func (app *App) Run() error {
 	storage := local.New(
 		app.log,
 		app.cfg.NetworkMapPath,
-		app.cfg.StartStation,
-		app.cfg.EndStation,
-		app.cfg.NumTrains,
 	)
 
 	//test
