@@ -49,20 +49,14 @@ type coord struct{ x, y int }
 type edge struct{ u, v int }
 
 type Storage struct {
-	log          *slog.Logger
-	MapPath      string
-	StartStation string
-	EndStation   string
-	Trains       int
+	log     *slog.Logger
+	MapPath string
 }
 
-func New(logger *slog.Logger, filePath, start, end string, numTrains int) *Storage {
+func New(logger *slog.Logger, filePath string) *Storage {
 	return &Storage{
-		log:          logger,
-		MapPath:      filePath,
-		StartStation: start,
-		EndStation:   end,
-		Trains:       numTrains,
+		log:     logger,
+		MapPath: filePath,
 	}
 }
 
@@ -241,7 +235,7 @@ func buildStation(log *slog.Logger, line string, lineCount int) (domain.Station,
 			slog.Int("map line", lineCount),
 			slog.Any("error", err),
 		)
-		return domain.Station{}, fmt.Errorf("can't parse int for x coordinate, station name: %s, map line: %d, error: %v", stationName, lineCount, err)
+		return domain.Station{}, fmt.Errorf("can't parse int for x coordinate, station name: %s, map line: %d, error: %w", stationName, lineCount, err)
 	}
 
 	if x < 0 {
@@ -259,7 +253,7 @@ func buildStation(log *slog.Logger, line string, lineCount int) (domain.Station,
 			slog.Int("map line", lineCount),
 			slog.Any("error", err),
 		)
-		return domain.Station{}, fmt.Errorf("can't parse int for y coordinate, station name: %s, map line: %d, error: %v", stationName, lineCount, err)
+		return domain.Station{}, fmt.Errorf("can't parse int for y coordinate, station name: %s, map line: %d, error: %w", stationName, lineCount, err)
 	}
 
 	if y < 0 {
