@@ -61,16 +61,16 @@ func (s *Service) getReindexedMap(data domain.MapData) ([][]int, []string) {
 
 	return newAdjList, newStationNames
 }
-func (s *Service) FindOptimalPaths() [][]string {
+func (s *Service) FindOptimalPaths() [][]int {
 	networkData, err := s.mapProvider.BuildMap()
 	if err != nil {
 		s.logger.Error("failed to build map from provider", slog.Any("error", err))
 		return nil
 	}
 	// We ensure start is 0 and end is 1 as algorithm expects
-	adjList, stationNames := s.getReindexedMap(networkData)
+	adjList, _ := s.getReindexedMap(networkData)
 	// Setup Graph
-	numNodes := 2*len(stationNames) - 2
+	numNodes := 2*len(networkData.Stations) - 2
 	graph := make([][]domain.Edge, numNodes)
 	addEdge := func(from, to, cap, cost int) {
 		graph[from] = append(graph[from], domain.Edge{
@@ -102,7 +102,7 @@ func (s *Service) FindOptimalPaths() [][]string {
 	}
 
 	// Add vertex capacities (split nodes) to enforce vertex-disjoint constraint
-	for i := 2; i < len(stationNames); i++ {
+	for i := 2; i < len(networkData.Stations); i++ {
 		addEdge(inNode(i), outNode(i), 1, 0)
 	}
 
@@ -139,10 +139,10 @@ func (s *Service) FindOptimalPaths() [][]string {
 		}
 	}
 	bestTurns := int(1e9)
-	var bestPaths [][]string
+	var bestPaths [][]int
 	// Repeatedly find the shortest augmenting path allowing negative edge costs
 	for spfa(graph, 0, 1, numNodes) {
-		paths := extractPaths(graph, stationNames)
+		paths := extractPaths(graph)
 		turns, _ := optimizeTrainAllocation(paths, s.numTrains)
 
 		if turns < bestTurns {
@@ -202,11 +202,11 @@ func spfa(graph [][]domain.Edge, S, T, numNodes int) bool {
 	}
 	return true
 }
-func extractPaths(graph [][]domain.Edge, names []string) [][]string {
-	var paths [][]string
+func extractPaths(graph [][]domain.Edge) [][]int {
+	var paths [][]int
 	for _, e := range graph[0] {
 		if e.Cap > 0 && e.Flow == 1 {
-			path := []string{names[0]}
+			path := []int{0}
 			curr := e.To
 
 			visited := make(map[int]bool)
@@ -217,7 +217,7 @@ func extractPaths(graph [][]domain.Edge, names []string) [][]string {
 				visited[curr] = true
 
 				idx := (curr + 2) / 2
-				path = append(path, names[idx])
+				path = append(path, idx)
 
 				out := curr + 1
 				for _, nextE := range graph[out] {
@@ -227,7 +227,7 @@ func extractPaths(graph [][]domain.Edge, names []string) [][]string {
 					}
 				}
 			}
-			path = append(path, names[1])
+			path = append(path, 1)
 			paths = append(paths, path)
 		}
 	}
@@ -235,11 +235,11 @@ func extractPaths(graph [][]domain.Edge, names []string) [][]string {
 }
 
 type PathInfo struct {
-	Nodes  []string
+	Nodes  []int
 	Trains int
 }
 
-func optimizeTrainAllocation(paths [][]string, numTrains int) (int, []*PathInfo) {
+func optimizeTrainAllocation(paths [][]int, numTrains int) (int, []*PathInfo) {
 	allocation := make([]int, len(paths))
 	trainsLeft := numTrains
 
