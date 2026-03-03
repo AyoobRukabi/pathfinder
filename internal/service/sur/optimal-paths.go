@@ -6,16 +6,12 @@ import (
 	"gitea.kood.tech/ivanandreev/pathfinder/internal/domain"
 )
 
-type Edge struct {
-	To, Cap, Flow, Cost, Rev int
-}
-
 type Service struct {
 	startStation string
 	endStation   string
 	numTrains    int
 	networkMap   domain.MapData
-	edge         domain.Edge
+	//edge         domain.Edge
 }
 
 func New(start, end string, trains int, data domain.MapData) *Service {
@@ -69,10 +65,22 @@ func (s *Service) FindOptimalPaths() [][]string {
 	fmt.Println(s.networkMap)
 	// Setup Graph
 	numNodes := 2*len(stationNames) - 2
-	graph := make([][]Edge, numNodes)
+	graph := make([][]domain.Edge, numNodes)
 	addEdge := func(from, to, cap, cost int) {
-		graph[from] = append(graph[from], Edge{to, cap, 0, cost, len(graph[to])})
-		graph[to] = append(graph[to], Edge{from, 0, 0, -cost, len(graph[from]) - 1})
+		graph[from] = append(graph[from], domain.Edge{
+			To:       to,
+			Cap:      cap,
+			Flow:     0,
+			Cost:     cost,
+			RevIndex: len(graph[to]),
+		})
+		graph[to] = append(graph[to], domain.Edge{
+			To:       from,
+			Cap:      0,
+			Flow:     0,
+			Cost:     -cost,
+			RevIndex: len(graph[from]) - 1,
+		})
 	}
 	inNode := func(idx int) int {
 		if idx <= 1 {
@@ -140,7 +148,7 @@ func (s *Service) FindOptimalPaths() [][]string {
 }
 
 // spfa implements the Shortest Path Faster Algorithm for finding paths with negative costs.
-func spfa(graph [][]Edge, S, T, numNodes int) bool {
+func spfa(graph [][]domain.Edge, S, T, numNodes int) bool {
 	dist := make([]int, numNodes)
 	for i := range dist {
 		dist[i] = 1e9
@@ -180,7 +188,7 @@ func spfa(graph [][]Edge, S, T, numNodes int) bool {
 	for curr != S {
 		p := parentnode[curr]
 		idx := parentEdge[curr]
-		revIdx := graph[p][idx].Rev
+		revIdx := graph[p][idx].RevIndex
 
 		graph[p][idx].Flow++
 		graph[curr][revIdx].Flow--
@@ -188,7 +196,7 @@ func spfa(graph [][]Edge, S, T, numNodes int) bool {
 	}
 	return true
 }
-func extractPaths(graph [][]Edge, names []string) [][]string {
+func extractPaths(graph [][]domain.Edge, names []string) [][]string {
 	var paths [][]string
 	for _, e := range graph[0] {
 		if e.Cap > 0 && e.Flow == 1 {
