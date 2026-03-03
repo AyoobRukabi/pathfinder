@@ -1,6 +1,8 @@
 package sur
 
 import (
+	"fmt"
+
 	"gitea.kood.tech/ivanandreev/pathfinder/internal/domain"
 )
 
@@ -13,6 +15,7 @@ type Service struct {
 	endStation   string
 	numTrains    int
 	networkMap   domain.MapData
+	edge         domain.Edge
 }
 
 func New(start, end string, trains int, data domain.MapData) *Service {
@@ -63,13 +66,25 @@ func (s *Service) getReindexedMap() ([][]int, []string) {
 func (s *Service) FindOptimalPaths() [][]string {
 	// We ensure start is 0 and end is 1 as algorithm expects
 	adjList, stationNames := s.getReindexedMap()
-
+	fmt.Println(s.networkMap)
 	// Setup Graph
 	numNodes := 2*len(stationNames) - 2
 	graph := make([][]Edge, numNodes)
 	addEdge := func(from, to, cap, cost int) {
 		graph[from] = append(graph[from], Edge{to, cap, 0, cost, len(graph[to])})
 		graph[to] = append(graph[to], Edge{from, 0, 0, -cost, len(graph[from]) - 1})
+	}
+	inNode := func(idx int) int {
+		if idx <= 1 {
+			return idx
+		}
+		return 2*idx - 2
+	}
+	outNode := func(idx int) int {
+		if idx <= 1 {
+			return idx
+		}
+		return 2*idx - 1
 	}
 
 	// Add vertex capacities (split nodes) to enforce vertex-disjoint constraint
@@ -122,4 +137,122 @@ func (s *Service) FindOptimalPaths() [][]string {
 		}
 	}
 	return bestPaths
+}
+
+// spfa implements the Shortest Path Faster Algorithm for finding paths with negative costs.
+func spfa(graph [][]Edge, S, T, numNodes int) bool {
+	dist := make([]int, numNodes)
+	for i := range dist {
+		dist[i] = 1e9
+	}
+	parentnode := make([]int, numNodes)
+	parentEdge := make([]int, numNodes)
+	inQueue := make([]bool, numNodes)
+
+	queue := []int{S}
+	dist[S] = 0
+	inQueue[S] = true
+
+	for len(queue) > 0 {
+		u := queue[0]
+		queue = queue[1:]
+		inQueue[u] = false
+
+		for i, e := range graph[u] {
+			if e.Cap-e.Flow > 0 && dist[u]+e.Cost < dist[e.To] {
+				dist[e.To] = dist[u] + e.Cost
+				parentnode[e.To] = u
+				parentEdge[e.To] = i
+				if !inQueue[e.To] {
+					queue = append(queue, e.To)
+					inQueue[e.To] = true
+				}
+			}
+		}
+	}
+
+	if dist[T] == 1e9 {
+		return false
+	}
+
+	// Augment flow along the shortest path
+	curr := T
+	for curr != S {
+		p := parentnode[curr]
+		idx := parentEdge[curr]
+		revIdx := graph[p][idx].Rev
+
+		graph[p][idx].Flow++
+		graph[curr][revIdx].Flow--
+		curr = p
+	}
+	return true
+}
+func extractPaths(graph [][]Edge, names []string) [][]string {
+	var paths [][]string
+	for _, e := range graph[0] {
+		if e.Cap > 0 && e.Flow == 1 {
+			path := []string{names[0]}
+			curr := e.To
+
+			visited := make(map[int]bool)
+			for curr != 1 {
+				if visited[curr] {
+					break
+				}
+				visited[curr] = true
+
+				idx := (curr + 2) / 2
+				path = append(path, names[idx])
+
+				out := curr + 1
+				for _, nextE := range graph[out] {
+					if nextE.Cap > 0 && nextE.Flow == 1 {
+						curr = nextE.To
+						break
+					}
+				}
+			}
+			path = append(path, names[1])
+			paths = append(paths, path)
+		}
+	}
+	return paths
+}
+
+type PathInfo struct {
+	Nodes  []string
+	Trains int
+}
+
+func optimizeTrainAllocation(paths [][]string, numTrains int) (int, []*PathInfo) {
+	allocation := make([]int, len(paths))
+	trainsLeft := numTrains
+
+	for trainsLeft > 0 {
+		bestIdx := 0
+		minCost := len(paths[0]) + allocation[0]
+		for i := 1; i < len(paths); i++ {
+			cost := len(paths[i]) + allocation[i]
+			if cost < minCost {
+				minCost = cost
+				bestIdx = i
+			}
+		}
+		allocation[bestIdx]++
+		trainsLeft--
+	}
+
+	maxTurns := 0
+	var result []*PathInfo
+	for i := range paths {
+		if allocation[i] > 0 {
+			turns := len(paths[i]) - 1 + allocation[i] - 1
+			if turns > maxTurns {
+				maxTurns = turns
+			}
+			result = append(result, &PathInfo{Nodes: paths[i], Trains: allocation[i]})
+		}
+	}
+	return maxTurns, result
 }
