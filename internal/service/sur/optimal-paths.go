@@ -1,7 +1,7 @@
 package sur
 
 import (
-	"fmt"
+	"log/slog"
 
 	"gitea.kood.tech/ivanandreev/pathfinder/internal/domain"
 )
@@ -10,25 +10,27 @@ type Service struct {
 	startStation string
 	endStation   string
 	numTrains    int
-	networkMap   domain.MapData
+	logger       *slog.Logger
+	mapProvider  domain.MapProvider
 	//edge         domain.Edge
 }
 
-func New(start, end string, trains int, data domain.MapData) *Service {
+func New(start, end string, trains int, provider domain.MapProvider, logger *slog.Logger) *Service {
 	return &Service{
 		startStation: start,
 		endStation:   end,
 		numTrains:    trains,
-		networkMap:   data,
+		mapProvider:  provider,
+		logger:       logger,
 	}
 }
-func (s *Service) getReindexedMap() ([][]int, []string) {
+func (s *Service) getReindexedMap(data domain.MapData) ([][]int, []string) {
 	oldToNew := make(map[int]int)
-	newStationNames := make([]string, len(s.networkMap.Stations))
+	newStationNames := make([]string, len(data.Stations))
 
 	//  Get original IDs for Start and End
-	startID := s.networkMap.StationsNameToID[s.startStation]
-	endID := s.networkMap.StationsNameToID[s.endStation]
+	startID := data.StationsNameToID[s.startStation]
+	endID := data.StationsNameToID[s.endStation]
 
 	//  Map Start to 0 and End to 1
 	oldToNew[startID] = 0
@@ -38,7 +40,7 @@ func (s *Service) getReindexedMap() ([][]int, []string) {
 
 	//  Map everything else to 2, 3, 4...
 	nextID := 2
-	for i, station := range s.networkMap.Stations {
+	for i, station := range data.Stations {
 		if i == startID || i == endID {
 			continue
 		}
@@ -48,8 +50,8 @@ func (s *Service) getReindexedMap() ([][]int, []string) {
 	}
 
 	//  Create the new AdjList using the new IDs
-	newAdjList := make([][]int, len(s.networkMap.AdjList))
-	for oldU, neighbors := range s.networkMap.AdjList {
+	newAdjList := make([][]int, len(data.AdjList))
+	for oldU, neighbors := range data.AdjList {
 		for _, oldV := range neighbors {
 			newU := oldToNew[oldU]
 			newV := oldToNew[oldV]
@@ -60,9 +62,13 @@ func (s *Service) getReindexedMap() ([][]int, []string) {
 	return newAdjList, newStationNames
 }
 func (s *Service) FindOptimalPaths() [][]string {
+	networkData, err := s.mapProvider.BuildMap()
+	if err != nil {
+		s.logger.Error("failed to build map from provider", slog.Any("error", err))
+		return nil
+	}
 	// We ensure start is 0 and end is 1 as algorithm expects
-	adjList, stationNames := s.getReindexedMap()
-	fmt.Println(s.networkMap)
+	adjList, stationNames := s.getReindexedMap(networkData)
 	// Setup Graph
 	numNodes := 2*len(stationNames) - 2
 	graph := make([][]domain.Edge, numNodes)

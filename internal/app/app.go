@@ -11,8 +11,9 @@ import (
 )
 
 type App struct {
-	cfg *config.Config
-	log *slog.Logger
+	cfg     *config.Config
+	log     *slog.Logger
+	service *sur.Service
 	// some other fields
 }
 
@@ -34,9 +35,18 @@ func (app *App) Run() error {
 		app.log,
 		app.cfg.NetworkMapPath,
 	)
+	app.service = sur.New(
+		app.cfg.StartStation,
+		app.cfg.EndStation,
+		app.cfg.NumTrains,
+		storage,
+		app.log,
+	)
+	paths := app.service.FindOptimalPaths()
+	fmt.Println(paths)
 
 	//test
-	if err := testFunc(storage); err != nil { // TODO: Remove
+	if err := testFunc(storage, app.log); err != nil { // TODO: Remove
 		return err
 	}
 
@@ -47,19 +57,11 @@ func (app *App) Run() error {
 	return nil
 }
 
-func testFunc(s *local.Storage) error {
+func testFunc(s *local.Storage, log *slog.Logger) error {
 	networkMap, err := s.BuildMap()
 	if err != nil {
 		return err
 	}
-	Service := sur.New(
-		s.StartStation,
-		s.EndStation,
-		s.Trains,
-		networkMap,
-	)
-	paths := Service.FindOptimalPaths()
-	fmt.Println(paths)
 
 	for i := range networkMap.AdjList {
 		fmt.Printf("Node: %d connects to nodes: %v\n", i, networkMap.AdjList[i])

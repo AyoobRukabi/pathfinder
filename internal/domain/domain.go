@@ -20,6 +20,10 @@ type MapData struct {
 	AdjList          [][]int
 }
 
+type MapProvider interface {
+	BuildMap() (MapData, error)
+}
+
 // option 2
 
 // type Edge struct {
