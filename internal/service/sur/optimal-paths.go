@@ -24,8 +24,9 @@ func New(start, end string, trains int, provider domain.MapProvider, logger *slo
 		logger:       logger,
 	}
 }
-func (s *Service) getReindexedMap(data domain.MapData) ([][]int, []string) {
+func (s *Service) getReindexedMap(data domain.MapData) ([][]int, []string, map[int]int) {
 	oldToNew := make(map[int]int)
+	newToOld := make(map[int]int)
 	newStationNames := make([]string, len(data.Stations))
 
 	//  Get original IDs for Start and End
@@ -34,7 +35,9 @@ func (s *Service) getReindexedMap(data domain.MapData) ([][]int, []string) {
 
 	//  Map Start to 0 and End to 1
 	oldToNew[startID] = 0
+	newToOld[0] = startID
 	oldToNew[endID] = 1
+	newToOld[1] = endID
 	newStationNames[0] = s.startStation
 	newStationNames[1] = s.endStation
 
@@ -45,6 +48,7 @@ func (s *Service) getReindexedMap(data domain.MapData) ([][]int, []string) {
 			continue
 		}
 		oldToNew[i] = nextID
+		newToOld[nextID] = i
 		newStationNames[nextID] = station.Name
 		nextID++
 	}
@@ -59,7 +63,7 @@ func (s *Service) getReindexedMap(data domain.MapData) ([][]int, []string) {
 		}
 	}
 
-	return newAdjList, newStationNames
+	return newAdjList, newStationNames, newToOld
 }
 func (s *Service) FindOptimalPaths() [][]int {
 	networkData, err := s.mapProvider.BuildMap()
@@ -68,7 +72,7 @@ func (s *Service) FindOptimalPaths() [][]int {
 		return nil
 	}
 	// We ensure start is 0 and end is 1 as algorithm expects
-	adjList, _ := s.getReindexedMap(networkData)
+	adjList, _, newToOld := s.getReindexedMap(networkData)
 	// Setup Graph
 	numNodes := 2*len(networkData.Stations) - 2
 	graph := make([][]domain.Edge, numNodes)
@@ -150,7 +154,17 @@ func (s *Service) FindOptimalPaths() [][]int {
 			bestPaths = paths
 		}
 	}
-	return bestPaths
+	// Translate Local IDs back to Original IDs
+	translatedPaths := make([][]int, len(bestPaths))
+	for i, path := range bestPaths {
+		originalPath := make([]int, len(path))
+		for j, localID := range path {
+			originalPath[j] = newToOld[localID]
+		}
+		translatedPaths[i] = originalPath
+	}
+
+	return translatedPaths
 }
 
 // spfa implements the Shortest Path Faster Algorithm for finding paths with negative costs.
