@@ -5,13 +5,15 @@ import (
 	"log/slog"
 
 	"gitea.kood.tech/ivanandreev/pathfinder/internal/config"
+	"gitea.kood.tech/ivanandreev/pathfinder/internal/service/sur"
 	"gitea.kood.tech/ivanandreev/pathfinder/internal/storage/local"
 	"gitea.kood.tech/ivanandreev/pathfinder/pkg/logger"
 )
 
 type App struct {
-	cfg *config.Config
-	log *slog.Logger
+	cfg     *config.Config
+	log     *slog.Logger
+	service *sur.Service
 	// some other fields
 }
 
@@ -33,9 +35,18 @@ func (app *App) Run() error {
 		app.log,
 		app.cfg.NetworkMapPath,
 	)
+	app.service = sur.New(
+		app.cfg.StartStation,
+		app.cfg.EndStation,
+		app.cfg.NumTrains,
+		storage,
+		app.log,
+	)
+	paths := app.service.FindOptimalPaths()
+	fmt.Println(paths)
 
 	//test
-	if err := testFunc(storage); err != nil { // TODO: Remove
+	if err := testFunc(storage, app.log); err != nil { // TODO: Remove
 		return err
 	}
 
@@ -46,7 +57,7 @@ func (app *App) Run() error {
 	return nil
 }
 
-func testFunc(s *local.Storage) error {
+func testFunc(s *local.Storage, log *slog.Logger) error {
 	networkMap, err := s.BuildMap()
 	if err != nil {
 		return err
